@@ -1,0 +1,9 @@
+dependencies:
+- name: aws-efs-csi-driver
+  repository: https://kubernetes-sigs.github.io/aws-efs-csi-driver/
+  version: 1.1.0
+- name: jenkins
+  repository: https://charts.jenkins.io
+  version: 3.1.9
+digest: sha256:a9685b39aaedd39406d7ae86e13276eee15d8e4d4d6952b3aa52b6dbcd9c9874
+generated: "2021-02-14T14:51:57.16577Z"

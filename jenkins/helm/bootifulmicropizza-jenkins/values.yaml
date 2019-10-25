@@ -1,0 +1,167 @@
+jenkins:
+  serviceAccount:
+    annotations:
+      eks.amazonaws.com/role-arn: "arn:aws:iam::201655463889:role/BootifulMicroPizzaJenkinsServiceAccount"
+  controller:
+    containerEnv:
+      - name: "CASC_SSM_PREFIX"
+        value: "/jenkins/"
+      - name: "AWS_REGION"
+        value: "eu-west-1"
+    # resources:
+    #   requests:
+    #     cpu: 1
+    probes:
+      livenessProbe:
+        periodSeconds: 10
+        failureThreshold: 30
+    JCasC:
+      configScripts:
+        credentials-config: |
+          credentials:
+            system:
+              domainCredentials:
+              - credentials:
+                - string:
+                    id: github
+                    description: GitHub
+                    secret: ${github_secret}
+                    scope: GLOBAL
+                - aws:
+                    id: JENKINS_IAM_USER
+                    description: AWS user
+                    accessKey: ${awsAccessKey}
+                    secretKey: ${awsSecretKey}
+                    scope: GLOBAL
+        github-config: |
+          unclassified:
+            gitHubPluginConfig:
+              configs:
+                - name: "Bootiful Micro Pizza GitHub"
+                  apiUrl: "https://api.github.com"
+                  credentialsId: github
+                  manageHooks: true
+            gitHubConfiguration:
+              apiRateLimitChecker: NoThrottle
+            globalLibraries:
+              libraries:
+              - defaultVersion: "master"
+                name: "cicd-pipeline"
+                retriever:
+                  modernSCM:
+                    scm:
+                      git:
+                        id: "cicd-pipeline"
+                        remote: "https://github.com/bootifulmicropizza/v2_cicd_pipeline"
+        security-config: |
+          security:
+            globalJobDslSecurityConfiguration:
+              useScriptSecurity: false
+        jobs: |
+          jobs:
+            - script: |
+                freeStyleJob('jcasc') {
+                  scm {
+                    git {
+                      remote {
+                        url 'https://github.com/bootifulmicropizza/jcasc'
+                      }
+                    }
+                  }
+                  steps {
+                    jobDsl {
+                      targets 'jobs/*.groovy'
+                    }
+                  }
+                }
+            - script: queue('jcasc')
+    jenkinsAdminEmail: jenkins@yobibyte-solutions.co.uk
+    installPlugins:
+      - kubernetes:1.28.5
+      - workflow-aggregator:2.6
+      - git:4.6.0
+      - configuration-as-code:1.47
+      - configuration-as-code-secret-ssm:1.0.1
+      - job-dsl:1.77
+      - docker-workflow:1.25
+      - pipeline-aws:1.43
+      - blueocean:1.24.3
+      
+  persistence:
+    enabled: true
+    existingClaim: jenkins-pvc
+    storageClass: "efs-sc"
+    annotations: {}
+    accessMode: "ReadWriteOnce"
+    size: "20Gi"
+
+  agent:
+    podName: default
+    namespace: devops
+    customJenkinsLabels: default
+    idleMinutes: 30
+    volumes:
+      - type: PVC
+        claimName: jenkins-pvc
+        mountPath: /var/jenkins
+        readOnly: false
+
+  additionalAgents:
+    buildtools:
+      podName: buildtools
+      namespace: devops
+      customJenkinsLabels: buildtools
+      image: 201655463889.dkr.ecr.eu-west-1.amazonaws.com/build-tools
+      tag: latest
+      alwaysPullImage: true
+      runAsUser: 1950
+      runAsGroup: 1950
+      envVars:
+        - name: HOME
+          value: /home/jenkins
+      resources:
+        limits:
+          cpu: "0.5"
+          memory: "3743Mi"
+      volumes:
+        - type: PVC
+          claimName: jenkins-pvc
+          mountPath: /var/jenkins
+          readOnly: false
+    docker:
+      podName: docker
+      namespace: devops
+      customJenkinsLabels: docker
+      image: 201655463889.dkr.ecr.eu-west-1.amazonaws.com/build-tools
+      tag: latest
+      alwaysPullImage: true
+      runAsUser: 1950
+      runAsGroup: 1950
+      envVars:
+        - name: HOME
+          value: /home/jenkins
+      resources:
+        limits:
+          cpu: "0.5"
+          memory: "2048Mi"
+      volumes:
+        - type: PVC
+          claimName: jenkins-pvc
+          mountPath: /var/jenkins
+          readOnly: false
+      yamlTemplate: |-
+        apiVersion: v1
+        kind: Pod
+        spec:
+          containers:
+            - name: jnlp
+              image: jenkins/jnlp-agent-docker:latest
+              volumeMounts:
+                - name: dockersock
+                  mountPath: /var/run/docker.sock
+          volumes:
+          - name: dockersock
+            hostPath:
+              path: /var/run/docker.sock
+              type: "File"
+      yamlMergeStrategy: "merge"

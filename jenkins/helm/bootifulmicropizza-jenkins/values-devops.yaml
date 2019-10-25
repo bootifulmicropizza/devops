@@ -1,0 +1,9 @@
+jenkins:
+  serviceAccount:
+    annotations:
+      eks.amazonaws.com/role-arn: "arn:aws:iam::337036170088:role/BootifulMicroPizzaJenkinsServiceAccount"
+  additionalAgents:
+    buildtools:
+      image: 337036170088.dkr.ecr.eu-west-1.amazonaws.com/build-tools
+    docker:
+      image: 337036170088.dkr.ecr.eu-west-1.amazonaws.com/build-tools

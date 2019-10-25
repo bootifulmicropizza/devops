@@ -1,0 +1,13 @@
+apiVersion: v2
+name: bootifulmicropizza-jenkins
+description: A Helm chart for Jenkins configured for bootifulmicropizza.
+type: application
+version: 1.0.0
+appVersion: 1.0.0
+dependencies:
+  - name: aws-efs-csi-driver
+    version: 1.1.0
+    repository: https://kubernetes-sigs.github.io/aws-efs-csi-driver/
+  - name: jenkins
+    version: 3.1.9
+    repository: https://charts.jenkins.io
